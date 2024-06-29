@@ -3,7 +3,7 @@ import sys
 import cplex
 from recordclass import recordclass
 
-TOLERANCE =10e-6 
+TOLERANCE =10e-8 
 Orden = recordclass('Orden', 'id beneficio cant_trab')
 
 class InstanciaAsignacionCuadrillas:
@@ -137,16 +137,14 @@ def agregar_restricciones(prob, instancia):
 
     ordenes = instancia.ordenes
 
-    #Si un trabajador realiza una operación en un turno, ningún trabajador puede realizar la misma operación en otro turno
+    #Si una orden se realiza en un turno, no puede ser realizada en otro turno
     restricciones = []
     nombres = []
     for o in range(instancia.cantidad_ordenes):
         for t1 in range(1, 30):
             for t2 in range(t1 + 1, 31):
-                for w1 in range(1, instancia.cantidad_trabajadores):
-                    for w2 in range(w1, instancia.cantidad_trabajadores):
-                        restricciones.append([["X_" + ordenes[o].id + "_" + str(w1) + "_" + str(t1), "X_" + ordenes[o].id + "_" + str(w2) + "_" + str(t2)], [1, 1]])
-                        nombres.append("Mismo truno" + str(len(restricciones)))
+                restricciones.append([["O_" + ordenes[o].id + "_" + str(t1), "O_" + ordenes[o].id + "_" + str(t2)], [1, 1]])
+                nombres.append("Mismo turno" + str(len(restricciones)))
     cantidad = len(restricciones)
     prob.linear_constraints.add(lin_expr=restricciones,
                                senses=["L"]*cantidad,
@@ -170,48 +168,38 @@ def agregar_restricciones(prob, instancia):
                                names=nombres)
     
     #Correctitud variables binarias de asignación
-    nombres_1 = []
-    nombres_2 = []
-    restricciones_1 = []
-    restricciones_2 = []
+    nombres = []
+    restricciones = []
     for w in range(1, instancia.cantidad_trabajadores + 1):
         for d in range(1, 7):
             restriccion = ["W" + str(w) + str(d)]
             for o in range(instancia.cantidad_ordenes):
                 for t in range(1, 6):
                     restriccion.append("X_" + ordenes[o].id + "_" + str(w) + "_" + str(5*(d-1) + t))
-            restricciones_1.append([restriccion, [-4] + [1]*(len(restriccion) - 1)])
-            restricciones_2.append([restriccion, [1] + [-1]*(len(restriccion) - 1)])
-            nombres_1.append("Correctitud asignación A" + str(len(restricciones)))
-            nombres_2.append("Correctitud asignación B" + str(len(restricciones)))
-    cantidad = len(restricciones_1)
-    prob.linear_constraints.add(lin_expr=restricciones_1 + restricciones_2,
-                               senses=["L"]*cantidad*2,
-                               rhs=[0]*2*cantidad,
-                               names=nombres_1 + nombres_2)                
+            restricciones.append([restriccion, [-4] + [1]*(len(restriccion) - 1)])
+            nombres.append("Correctitud asignación" + str(len(restricciones)))
+    cantidad = len(restricciones)
+    prob.linear_constraints.add(lin_expr=restricciones,
+                               senses=["L"]*cantidad,
+                               rhs=[0]*cantidad,
+                               names=nombres)                
 
 
     #Correctitud variables binarias de realización
-    nombres_1 = []
-    nombres_2 = []
-    restricciones_1 = []
-    restricciones_2 = []
-    cantidades = []
+    nombres = []
+    restricciones = []
     for o in range(instancia.cantidad_ordenes):
         for t in range(1, 31):
-            cantidades.append(int(ordenes[o].cant_trab) - 1)
             restriccion = ["O_" + ordenes[o].id + "_" + str(t)]
             for w in range(1, instancia.cantidad_trabajadores + 1):
                 restriccion.append("X_" + str(ordenes[o][0]) + "_" + str(w) + "_" + str(t))
-            restricciones_1.append([restriccion, [int(ordenes[o].cant_trab)] + [-1]*(len(restriccion) - 1)])
-            restricciones_2.append([restriccion, [-(instancia.cantidad_trabajadores + 1)] + [1]*(len(restriccion) - 1)])
-            nombres_1.append("Correctitud realización A" + str(len(restricciones)))
-            nombres_2.append("Correctitud realización B" + str(len(restricciones)))
-    cantidad = len(restricciones_1)
-    prob.linear_constraints.add(lin_expr=restricciones_1 + restricciones_2,
-                               senses=["L"]*cantidad*2,
-                               rhs=[0]*cantidad + cantidades,
-                               names=nombres_1 + nombres_2)
+            restricciones.append([restriccion, [int(ordenes[o].cant_trab)] + [-1]*(len(restriccion) - 1)])
+            nombres.append("Correctitud realización" + str(len(restricciones)))
+    cantidad = len(restricciones)
+    prob.linear_constraints.add(lin_expr=restricciones,
+                               senses=["L"]*cantidad,
+                               rhs=[0]*cantidad,
+                               names=nombres)
     
     #Correctitud salarios
 
@@ -352,17 +340,19 @@ def mostrar_solucion(prob,instancia):
     valor_obj = prob.solution.get_objective_value()
     
     print('Funcion objetivo: ',valor_obj,'(' + str(status) + ')')
-    
+
+    print(prob.solution)
+
     # Tomar los valores de las variables
     x  = prob.solution.get_values()
     # Mostrar las variables con valor positivo (mayor que una tolerancia)
     i = 0
     for o in range(instancia.cantidad_ordenes):
-        for w in range(instancia.cantidad_trabajadores):
+        for w in range(1, instancia.cantidad_trabajadores + 1):
             for d in range(1, 7):
-                for t in range(1, ):
+                for t in range(1, 6):
                     if x[i] > TOLERANCE:
-                        print("El trabajador " + str(w) + " trabajó el día " + str(d) + " en el turno " + str(t) + " realizando la operación " + instancia.operaciones[o].id)
+                        print("El trabajador " + str(w) + " trabajó el día " + str(d) + " en el turno " + str(t) + " realizando la orden " + instancia.ordenes[o].id)
                     i += 1    
 
 def main():
