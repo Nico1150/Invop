@@ -238,13 +238,13 @@ def agregar_restricciones(prob, instancia):
     restricciones = []
     nombres = []
     for w in range(1, instancia.cantidad_trabajadores + 1):
-        restriccion = []
-        for o in range(instancia.cantidad_ordenes):
-           for d in range(6):
+        for d in range(6):
+            restriccion = []
+            for o in range(instancia.cantidad_ordenes):
                 for t in range(1, 6):
                     restriccion.append("X_" + ordenes[o].id + "_" + str(w) + "_" + str(5*d + t))
-        restricciones.append([restriccion, [1]*len(restriccion)])
-        nombres.append("No todos los turnos" + str(len(restricciones)))
+            restricciones.append([restriccion, [1]*len(restriccion)])
+            nombres.append("No todos los turnos" + str(len(restricciones)))
     cantidad = len(restricciones)
     prob.linear_constraints.add(lin_expr=restricciones,
                                senses=["L"]*cantidad,
