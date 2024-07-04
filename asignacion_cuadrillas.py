@@ -6,6 +6,11 @@ from recordclass import recordclass
 TOLERANCE =10e-8 
 Orden = recordclass('Orden', 'id beneficio cant_trab')
 
+conflictos = 0
+repeticiones = 0
+alpha_conflictos = 0
+alpha_repeticiones = 0
+
 class InstanciaAsignacionCuadrillas:
     def __init__(self):
         self.cantidad_trabajadores = 0
@@ -119,6 +124,21 @@ def agregar_variables(prob, instancia):
     #Variables que determinan cuanto hay que pagarle a cada trabajador
     for i in range(1, instancia.cantidad_trabajadores + 1):
         prob.variables.add(obj = [-1000, -200, -200, -100], lb = [0]*4, ub = [30]*4, types = ['I']*4, names = ["S" + str(i) + "1", "S" + str(i) + "2", "S" + str(i) + "3", "S" + str(i) + "4"])
+
+    if conflictos == 2:
+    #Variables que penalizan por cada conflicto entre trabajadores
+        for lista in instancia.conflictos_trabajadores:
+            prob.variables.add(obj = [-alpha_conflictos], lb = [0], ub = [instancia.cantidad_ordenes], types = ['I'], names = ["CT_" + lista[0] + "_" + lista[1]])
+            for o in instancia.ordenes:
+                prob.variables.add(obj = [0], lb = [0], ub = [1], types = ['B'], names = ["OW_" + lista[0] + "_" + lista[1] + "_" + str(o)])     
+
+    if repeticiones == 2:
+    #Variables que penalizan por cada orden repetida por alguien
+        for lista in instancia.ordenes_repetitivas:
+            for w in range(1, instancia.cantidad_trabajadores + 1):
+                prob.variables.add(obj = [-alpha_conflictos], lb = [0], ub = [len(instancia.ordenes_repetitivas)], types = ['I'], names = ["OR_" + lista[0] + "_" + lista[1] + "_" + str(w)])
+
+
 
 def agregar_restricciones(prob, instancia):
     # Agregar las restricciones ax <= (>= ==) b:
@@ -300,7 +320,89 @@ def agregar_restricciones(prob, instancia):
     prob.linear_constraints.add(lin_expr=restricciones,
                                senses=["L"]*cantidad,
                                rhs=[8]*cantidad,
-                               names=nombres)        
+                               names=nombres)
+
+    if conflictos == 1:
+        restricciones = []
+        nombres = []
+        for o in range(instancia.cantidad_ordenes):
+            for t in range(1, 31):
+                    for lista in instancia.conflictos_trabajadores:
+                        restricciones.append([["X_" + ordenes[o].id + "_" + str(lista[0]) + "_" + str(t), "X_" + ordenes[o].id + "_" + str(lista[1]) + "_" + str(t)], [1, 1]])
+                        nombres.append("Trabajadores en conflicto_" + str(lista[0]) + "_" + str(lista[1]))
+        cantidad = len(restricciones)
+        prob.linear_constraints.add(lin_expr=restricciones,
+                               senses=["L"]*cantidad,
+                               rhs=[1]*cantidad,
+                               names=nombres)
+    
+        restricciones = []
+        nombres = []
+
+    if repeticiones == 1:    
+
+        restricciones = []
+        nombres = []
+        for lista in instancia.ordenes_repetitivas:
+            for w in range(1, instancia.cantidad_trabajadores):
+                restriccion = []
+                for t in range(1, 31):
+                    restriccion += ["X_" + lista[0] + "_" + str(w) + "_" + str(t), "X_" + lista[1] + "_" + str(w) + "_" + str(t)]
+            restricciones.append(restriccion, [1]*len(restriccion))        
+        cantidad = len(restricciones)
+        prob.linear_constraints.add(lin_expr=restricciones,
+                               senses=["L"]*cantidad,
+                               rhs=[1]*cantidad,
+                               names=nombres)
+    
+        restricciones = []
+        nombres = []
+
+    if conflictos == 2:
+
+        #Correctitud 2 trabajadores en conflicto misma orden
+        
+        restricciones = []
+        nombres = []
+        for o in instancia.ordenes:
+                for lista in instancia.conflictos_trabajadores:
+                    restriccion = ["OW_" + lista[0] + "_" + lista[1] + "_" + o.id]
+                    for t in range(1, 31):
+                        restriccion += ["X_" + o.id + "_" + lista[0] + "_" + str(t), "X_" + o.id + "_" + lista[1] + "_" + str(t)]
+                    restricciones.append(restriccion, [-1] + [1]*(len(restriccion) - 1))    
+                    nombres.append("Trabajadores en conflicto en orden" + str(lista[0]) + "_" + str(lista[1] + "_" + o.id))
+
+        cantidad = len(restricciones)
+        prob.linear_constraints.add(lin_expr=restricciones,
+                               senses=["L"]*cantidad,
+                               rhs=[1]*cantidad,
+                               names=nombres)
+        
+        #Penalizacion correcta
+        
+        restricciones = []
+        nombres = []
+
+        for lista in instancia.conflictos_trabajadores:
+            restriccion = ["CT_" + lista[0] + "_" + lista[1]]
+            for o in instancia.ordenes:
+                restriccion.append("OW_" + lista[0] + "_" + lista[1] + "_" + o.id)
+            restricciones.append(restriccion, [-1] + [1]*(len(restriccion) - 1))
+            nombres.append("Cantidad turnos juntos" + lista[0] + lista[1] + o.id)
+        cantidad = len(restricciones)
+        prob.linear_constraints.add(lin_expr=restricciones,
+                               senses=["L"]*cantidad,
+                               rhs=[1]*cantidad,
+                               names=nombres)              
+        
+    
+        restricciones = []
+        nombres = []
+
+    if repeticiones == 2:
+        
+
+
 
 
 
@@ -374,3 +476,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
