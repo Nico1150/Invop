@@ -391,7 +391,7 @@ def agregar_restricciones(prob, instancia):
         cantidad = len(restricciones)
         prob.linear_constraints.add(lin_expr=restricciones,
                                senses=["L"]*cantidad,
-                               rhs=[1]*cantidad,
+                               rhs=[0]*cantidad,
                                names=nombres)              
         
     
@@ -425,7 +425,7 @@ def agregar_restricciones(prob, instancia):
         cantidad = len(restricciones)
         prob.linear_constraints.add(lin_expr=restricciones,
                                senses=["L"]*cantidad,
-                               rhs=[1]*cantidad,
+                               rhs=[0]*cantidad,
                                names=nombres)    
 
         
